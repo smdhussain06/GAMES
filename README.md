@@ -22,8 +22,8 @@ A modern implementation of the classic Snake game built with Python and Pygame, 
 
 1. Clone the repository:
 ```bash
-git clone <your-repository-url>
-cd <repository-name>
+git clone https://github.com/smdhussain06/snakey.git
+cd snakey
 ```
 
 2. Install the required dependencies:
