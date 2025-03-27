@@ -8,29 +8,40 @@ from pygame import mixer
 pygame.init()
 mixer.init()
 
-# Constants
-WINDOW_WIDTH = 1000
-WINDOW_HEIGHT = 1000
-GRID_SIZE = 25  # Adjusted for better proportion in 1000x1000
-GRID_WIDTH = WINDOW_WIDTH // GRID_SIZE
-GRID_HEIGHT = WINDOW_HEIGHT // GRID_SIZE
+# Modern UI Design for Gaming - Snake Game
 
-# Monochromatic Colors
-BACKGROUND_COLOR = (0, 0, 0)      # Black
-SNAKE_COLOR = (255, 255, 255)     # White
-FOOD_COLOR = (128, 128, 128)      # Grey
-TEXT_COLOR = (255, 255, 255)      # White
+# Constants
+WINDOW_WIDTH = 800  # Adjusted window width for better view within screen
+WINDOW_HEIGHT = 800 # Adjusted window height for better view within screen
+BORDER_PADDING = 50 # Padding from window border to game screen
+GAME_WIDTH = WINDOW_WIDTH - 2 * BORDER_PADDING # Game screen width after padding
+GAME_HEIGHT = WINDOW_HEIGHT - 2 * BORDER_PADDING # Game screen height after padding
+GRID_SIZE = 20      # Adjusted grid size for better proportion in 800x800 and modern look
+GRID_WIDTH = GAME_WIDTH // GRID_SIZE
+GRID_HEIGHT = GAME_HEIGHT // GRID_SIZE
+
+# Modern Color Palette - Monochromatic with accents
+BACKGROUND_COLOR = (20, 20, 20)      # Dark Grey Background
+SNAKE_START_COLOR = (220, 220, 220)   # Light Grey - Start of Gradient
+SNAKE_END_COLOR = (100, 100, 100)     # Darker Grey - End of Gradient
+FOOD_COLOR = (240, 80, 80)          # Vibrant Red for Food - Accent Color
+SCORE_TEXT_COLOR = (240, 240, 240)    # Off-White for Score Text
+GAME_OVER_TEXT_COLOR = (255, 100, 100) # Light Red for Game Over Text
+UI_ELEMENT_COLOR = (80, 80, 80)       # Medium Grey for UI elements
 
 # Game settings
 FPS = 60
 INITIAL_SPEED = 8
+SNAKE_ROUNDNESS = 0.3 # Control the roundness of snake segments (0.0 - 1.0, 1.0 is fully round)
 
 class SnakeGame:
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("Modern Snake Game")
+        pygame.display.set_icon(pygame.image.load('snake_icon.png')) # Optional: Add an icon (create a simple icon named snake_icon.png)
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 42)
+        self.font_large = pygame.font.Font(None, 56) # Larger font for score and game over
+        self.font_small = pygame.font.Font(None, 36) # Smaller font for instructions
         self.reset_game()
 
     def reset_game(self):
@@ -79,12 +90,14 @@ class SnakeGame:
 
         self.move_counter = 0
         head = self.snake[0]
-        new_head = (
-            (head[0] + self.direction[0]) % GRID_WIDTH,   # Wrap around horizontally
-            (head[1] + self.direction[1]) % GRID_HEIGHT   # Wrap around vertically
-        )
+        new_head = (head[0] + self.direction[0], head[1] + self.direction[1])
 
-        # Only check for self collision
+        # Game Over on Wall Collision (No wrap-around)
+        if not (0 <= new_head[0] < GRID_WIDTH and 0 <= new_head[1] < GRID_HEIGHT):
+            self.game_over = True
+            return
+
+        # Game Over on Self Collision
         if new_head in self.snake:
             self.game_over = True
             return
@@ -98,83 +111,62 @@ class SnakeGame:
         else:
             self.snake.pop()
 
+    def draw_snake_segment(self, segment, index, snake_length):
+        x = BORDER_PADDING + segment[0] * GRID_SIZE
+        y = BORDER_PADDING + segment[1] * GRID_SIZE
+        segment_rect = pygame.Rect(x, y, GRID_SIZE, GRID_SIZE)
+
+        # Gradient color for snake segment
+        gradient_factor = index / snake_length
+        snake_color = [0, 0, 0]
+        for i in range(3): # R, G, B
+            snake_color[i] = int(SNAKE_START_COLOR[i] + (SNAKE_END_COLOR[i] - SNAKE_START_COLOR[i]) * gradient_factor)
+        snake_color = tuple(snake_color)
+
+        # Draw rounded rectangle for snake segment
+        rect_radius = int(GRID_SIZE * SNAKE_ROUNDNESS)
+        pygame.draw.rect(self.screen, snake_color, segment_rect, border_radius=rect_radius)
+
+
     def draw(self):
         self.screen.fill(BACKGROUND_COLOR)
 
-        # Draw connecting lines first (behind circles)
-        for i, segment in enumerate(self.snake[:-1]):  # Stop at second-to-last segment
-            color_intensity = max(0.3, 1 - i / len(self.snake))
-            segment_color = tuple(int(c * color_intensity) for c in SNAKE_COLOR)
-            
-            current_x = segment[0] * GRID_SIZE + GRID_SIZE // 2
-            current_y = segment[1] * GRID_SIZE + GRID_SIZE // 2
-            next_segment = self.snake[i + 1]
-            next_x = next_segment[0] * GRID_SIZE + GRID_SIZE // 2
-            next_y = next_segment[1] * GRID_SIZE + GRID_SIZE // 2
-            
-            # Handle screen wrap-around
-            dx = current_x - next_x
-            dy = current_y - next_y
-            
-            if abs(dx) > WINDOW_WIDTH // 2:
-                if dx > 0:
-                    next_x += WINDOW_WIDTH
-                else:
-                    next_x -= WINDOW_WIDTH
-            if abs(dy) > WINDOW_HEIGHT // 2:
-                if dy > 0:
-                    next_y += WINDOW_HEIGHT
-                else:
-                    next_y -= WINDOW_HEIGHT
-            
-            # Draw thick connecting line
-            pygame.draw.line(self.screen, segment_color, 
-                           (current_x, current_y), 
-                           (next_x, next_y), 
-                           int(GRID_SIZE * 0.8))  # Slightly thinner than the circles
+        # Draw Game Border (Optional UI element)
+        pygame.draw.rect(self.screen, UI_ELEMENT_COLOR, (BORDER_PADDING - 5, BORDER_PADDING - 5, GAME_WIDTH + 10, GAME_HEIGHT + 10), 2, border_radius=10)
 
-        # Draw snake segments as smooth circles
+
+        # Draw Snake - Modern Scrollbar Look
         for i, segment in enumerate(self.snake):
-            color_intensity = max(0.3, 1 - i / len(self.snake))
-            segment_color = tuple(int(c * color_intensity) for c in SNAKE_COLOR)
-            
-            center_x = segment[0] * GRID_SIZE + GRID_SIZE // 2
-            center_y = segment[1] * GRID_SIZE + GRID_SIZE // 2
-            radius = int(GRID_SIZE * 0.45)  # Slightly smaller radius for smoother appearance
-            
-            # Draw circle with antialiasing for smoother edges
-            pygame.gfxdraw.aacircle(self.screen, center_x, center_y, radius, segment_color)
-            pygame.gfxdraw.filled_circle(self.screen, center_x, center_y, radius, segment_color)
+            self.draw_snake_segment(segment, i, len(self.snake))
 
-        # Draw food with smooth pulsing animation
+
+        # Draw Food - Vibrant Red, Slightly Pulsing
         food_pulse = abs(pygame.time.get_ticks() % 1000 - 500) / 500
-        food_radius = int((GRID_SIZE * 0.4) * (0.8 + food_pulse * 0.2))
-        food_center = (self.food[0] * GRID_SIZE + GRID_SIZE // 2,
-                      self.food[1] * GRID_SIZE + GRID_SIZE // 2)
-        
-        # Draw food with antialiasing
-        pygame.gfxdraw.aacircle(self.screen, 
-                               int(food_center[0]), 
-                               int(food_center[1]), 
-                               food_radius, 
-                               FOOD_COLOR)
-        pygame.gfxdraw.filled_circle(self.screen, 
-                                   int(food_center[0]), 
-                                   int(food_center[1]), 
-                                   food_radius, 
-                                   FOOD_COLOR)
+        food_radius = int((GRID_SIZE * 0.5) * (0.9 + food_pulse * 0.1)) # Slightly less pulse
+        food_center_x = BORDER_PADDING + self.food[0] * GRID_SIZE + GRID_SIZE // 2
+        food_center_y = BORDER_PADDING + self.food[1] * GRID_SIZE + GRID_SIZE // 2
 
-        # Draw score with slight transparency for better integration
-        score_text = self.font.render(f"Score: {self.score}", True, TEXT_COLOR)
-        score_surface = pygame.Surface((score_text.get_width() + 20, score_text.get_height() + 10), pygame.SRCALPHA)
-        self.screen.blit(score_text, (20, 20))
+        pygame.gfxdraw.aacircle(self.screen, int(food_center_x), int(food_center_y), food_radius, FOOD_COLOR)
+        pygame.gfxdraw.filled_circle(self.screen, int(food_center_x), int(food_center_y), food_radius, FOOD_COLOR)
+
+        # Draw Score - Modern UI Style, Top Right
+        score_text_surface = self.font_large.render(f"Score: {self.score}", True, SCORE_TEXT_COLOR)
+        score_rect = score_text_surface.get_rect(topright=(WINDOW_WIDTH - 20, 20)) # Position top right with padding
+        self.screen.blit(score_text_surface, score_rect)
+
 
         if self.game_over:
-            game_over_text = self.font.render("Game Over! Press SPACE to restart", True, TEXT_COLOR)
-            text_rect = game_over_text.get_rect(center=(WINDOW_WIDTH/2, WINDOW_HEIGHT/2))
-            self.screen.blit(game_over_text, text_rect)
+            game_over_text = self.font_large.render("Game Over!", True, GAME_OVER_TEXT_COLOR)
+            restart_text = self.font_small.render("Press SPACE to Restart", True, SCORE_TEXT_COLOR)
+
+            game_over_rect = game_over_text.get_rect(center=(WINDOW_WIDTH/2, WINDOW_HEIGHT/2 - 40)) # Shift up a bit
+            restart_rect = restart_text.get_rect(center=(WINDOW_WIDTH/2, WINDOW_HEIGHT/2 + 40)) # Shift down a bit
+
+            self.screen.blit(game_over_text, game_over_rect)
+            self.screen.blit(restart_text, restart_rect)
 
         pygame.display.flip()
+
 
     def run(self):
         running = True
